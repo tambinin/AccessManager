@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  isActive  Boolean  @default(true)
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  devices      Device[]
+  sessions     Session[]
+  connections  Connection[]
+
+  @@map("users")
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  macAddress  String   @unique
+  ipAddress   String?
+  deviceName  String?
+  userAgent   String?
+  isActive    Boolean  @default(true)
+  lastSeen    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connections Connection[]
+
+  @@map("devices")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  refreshToken String   @unique
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Connection {
+  id            String    @id @default(cuid())
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  ipAddress     String
+  bytesDownload BigInt    @default(0)
+  bytesUpload   BigInt    @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId String
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("connections")
+}
+
+model NetworkRule {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  ruleType    String   // 'ALLOW', 'BLOCK', 'REDIRECT'
+  target      String   // IP, MAC, or subnet
+  isActive    Boolean  @default(true)
+  priority    Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("network_rules")
+}
+
+model SystemConfig {
+  id                 String   @id @default(cuid())
+  key                String   @unique
+  value              String
+  description        String?
+  isEditable         Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // 'LOGIN', 'LOGOUT', 'DEVICE_CONNECT', 'DEVICE_DISCONNECT', 'ADMIN_ACTION'
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  // Relations (optional, for user actions)
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
